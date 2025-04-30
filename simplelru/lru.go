@@ -103,6 +103,19 @@ func (c *LRU[K, V]) Remove(key K) (present bool) {
 	return false
 }
 
+// RemoveFunc is like [Remove] but uses the provided del function
+// to remove keys from the cache when del returns true.
+// RemoveFunc returns number of keys removed.
+func (c *LRU[K, V]) RemoveFunc(del func(K) bool) (counter int) {
+	for k, e := range c.items {
+		if del(k) {
+			c.removeElement(e)
+			counter++
+		}
+	}
+	return
+}
+
 // RemoveOldest removes the oldest item from the cache.
 func (c *LRU[K, V]) RemoveOldest() (key K, value V, ok bool) {
 	if ent := c.evictList.Back(); ent != nil {

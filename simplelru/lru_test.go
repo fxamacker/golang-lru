@@ -256,3 +256,87 @@ func TestCache_EvictionSameKey(t *testing.T) {
 		t.Errorf("evictedKeys got: %v want: %v", evictedKeys, want)
 	}
 }
+
+func TestCache_RemoveFunc(t *testing.T) {
+	const cacheSize = 128
+
+	cases := []struct {
+		name             string
+		del              func(int) bool
+		wantEvictEntries map[int]int
+	}{
+		{
+			name:             "remove 0 key",
+			del:              func(int) bool { return false },
+			wantEvictEntries: map[int]int{},
+		},
+		{
+			name:             "remove 1 key",
+			del:              func(k int) bool { return k == 42 },
+			wantEvictEntries: map[int]int{42: 42},
+		},
+		{
+			name:             "remove 3 keys",
+			del:              func(k int) bool { return k == 0 || k == 100 || k == 127 },
+			wantEvictEntries: map[int]int{0: 0, 100: 100, 127: 127},
+		},
+		{
+			name: "remove all keys",
+			del:  func(k int) bool { return true },
+			wantEvictEntries: func() map[int]int {
+				m := make(map[int]int)
+				for i := 0; i < cacheSize; i++ {
+					m[i] = i
+				}
+				return m
+			}(),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			evictEntries := make(map[int]int)
+			onEvicted := func(k int, v int) {
+				evictEntries[k] = v
+			}
+
+			l, err := NewLRU(cacheSize, onEvicted)
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+
+			for i := 0; i < cacheSize; i++ {
+				l.Add(i, i)
+			}
+
+			removeCounter := l.RemoveFunc(c.del)
+
+			if removeCounter != len(c.wantEvictEntries) {
+				t.Errorf("removeCount got: %v want: %v", removeCounter, len(c.wantEvictEntries))
+			}
+
+			if !reflect.DeepEqual(evictEntries, c.wantEvictEntries) {
+				t.Errorf("evictEntries got: %v want: %v", evictEntries, c.wantEvictEntries)
+			}
+
+			if l.Len() != cacheSize-len(c.wantEvictEntries) {
+				t.Errorf("lru len got: %d want: %d", l.Len(), cacheSize-len(c.wantEvictEntries))
+			}
+
+			for i := 0; i < cacheSize; i++ {
+				if _, evicted := c.wantEvictEntries[i]; evicted {
+					if l.Contains(i) {
+						t.Errorf("%d should not exist", i)
+					}
+				} else {
+					v, ok := l.Peek(i)
+					if !ok {
+						t.Errorf("%d should exist", i)
+					} else if v != i {
+						t.Errorf("%d should be set to %d", v, i)
+					}
+				}
+			}
+		})
+	}
+}

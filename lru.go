@@ -181,6 +181,27 @@ func (c *Cache[K, V]) Remove(key K) (present bool) {
 	return
 }
 
+// RemoveFunc is like [Remove] but uses the provided del function
+// to remove keys from the cache when del returns true.
+// RemoveFunc returns number of keys removed.
+func (c *Cache[K, V]) RemoveFunc(del func(K) bool) (counter int) {
+	var ks []K
+	var vs []V
+	c.lock.Lock()
+	counter = c.lru.RemoveFunc(del)
+	if c.onEvictedCB != nil && counter > 0 {
+		ks, vs = c.evictedKeys, c.evictedVals
+		c.initEvictBuffers()
+	}
+	c.lock.Unlock()
+	if c.onEvictedCB != nil && counter > 0 {
+		for i := 0; i < len(ks); i++ {
+			c.onEvictedCB(ks[i], vs[i])
+		}
+	}
+	return
+}
+
 // Resize changes the cache size.
 func (c *Cache[K, V]) Resize(size int) (evicted int) {
 	var ks []K
