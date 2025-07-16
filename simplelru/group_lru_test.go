@@ -16,6 +16,7 @@ var groupFromKey = func(key int) string {
 	}
 }
 
+//gocyclo:ignore
 func TestGroupLRU(t *testing.T) {
 	evictCounter := 0
 	onEvicted := func(k int, v int) {
