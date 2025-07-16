@@ -48,11 +48,16 @@ func (c *LRU[K, V]) Purge() {
 
 // Add adds a value to the cache.  Returns true if an eviction occurred.
 func (c *LRU[K, V]) Add(key K, value V) (evicted bool) {
+	_, evicted = c.add(key, value)
+	return
+}
+
+func (c *LRU[K, V]) add(key K, value V) (evictedKey K, evicted bool) {
 	// Check for existing item
 	if ent, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(ent)
 		ent.Value = value
-		return false
+		return
 	}
 
 	// Add new item
@@ -62,9 +67,9 @@ func (c *LRU[K, V]) Add(key K, value V) (evicted bool) {
 	evict := c.evictList.Length() > c.size
 	// Verify size not exceeded
 	if evict {
-		c.removeOldest()
+		return c.removeOldest()
 	}
-	return evict
+	return
 }
 
 // Get looks up a key's value from the cache.
@@ -166,10 +171,12 @@ func (c *LRU[K, V]) Resize(size int) (evicted int) {
 }
 
 // removeOldest removes the oldest item from the cache.
-func (c *LRU[K, V]) removeOldest() {
+func (c *LRU[K, V]) removeOldest() (evictedKey K, evicted bool) {
 	if ent := c.evictList.Back(); ent != nil {
 		c.removeElement(ent)
+		return ent.Key, true
 	}
+	return
 }
 
 // removeElement is used to remove a given list element from the cache
