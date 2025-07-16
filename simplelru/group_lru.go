@@ -3,6 +3,8 @@
 
 package simplelru
 
+import "errors"
+
 // GroupFromKey is used to get group from key.
 // This function is called when a cache entry is stored, removed, or evicted.
 type GroupFromKey[G, K comparable] func(key K) G
@@ -20,6 +22,9 @@ func NewGroupLRU[G comparable, K comparable, V any](
 	groupFromKey GroupFromKey[G, K],
 	onEvict EvictCallback[K, V],
 ) (*GroupLRU[G, K, V], error) {
+	if groupFromKey == nil {
+		return nil, errors.New("failed to create GroupCache: groupFromKey is nil")
+	}
 	lru, err := NewLRU(size, onEvict)
 	if err != nil {
 		return nil, err
