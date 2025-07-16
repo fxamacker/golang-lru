@@ -4,7 +4,7 @@
 package lru
 
 import (
-	"github.com/hashicorp/golang-lru/v2/simplelru"
+	"github.com/fxamacker/golang-lru/v2/simplelru"
 )
 
 // GroupCache is a thread-safe fixed size LRU cache.
